@@ -63,20 +63,27 @@ def MainMenu():
 def DirectoryList(url, page, order, title, query=''):
     title2=title
 
-    query = String.Quote(query, usePlus=False)
+    if not query:
+        query = ''
+    else:
+        query = String.Quote(query, usePlus=False)
+
     hitsPerPage = 20
 
-    q = {'query': query, 'hitsPerPage': hitsPerPage, 'page': page,
-        'facets': 'brand', 'facetFilters': '[[]]'}
+    form_data = {"params":
+            urllib.urlencode({
+                'query': query, 'hitsPerPage': hitsPerPage, 'page': page,
+                'facets': 'brand', 'facetFilters': '[[]]'
+                })
+            }
 
-    params = urllib.urlencode(q)
-    Log(params)
+    Log(form_data)
 
-    aad = {'x-algolia-api-key': Dict['Api Env']['api_key'],
+    algolia_api_data = urllib.urlencode({
+        'x-algolia-api-key': Dict['Api Env']['api_key'],
         'x-algolia-application-id': Dict['Api Env']['app_id'],
-        'x-algolia-agent': Dict['Api Env']['algolia_agent']}
-
-    algolia_api_data = urllib.urlencode(aad)
+        'x-algolia-agent': Dict['Api Env']['algolia_agent']
+        })
 
     host_api_url = 'https://' + Dict['Api Env']['app_id'] + '-dsn.algolia.net'
 
@@ -84,8 +91,6 @@ def DirectoryList(url, page, order, title, query=''):
         url = host_api_url + '/1/indexes/HentaiVideo%s/query?' %order + algolia_api_data
     else:
         url = host_api_url + '/1/indexes/HentaiVideo/query?' + algolia_api_data
-
-    form_data = {"params": params}
 
     r = HTTP.Request(url, data=json.dumps(form_data))
     data = JSON.ObjectFromString(r.content)
@@ -164,14 +169,17 @@ def Search(query=''):
     page = 0
 
     form_data = {'params':
-        urllib.urlencode(
-            {'query': query, 'hitsPerPage': hitsPerPage, 'page': page,
-                'facets': 'brand', 'facetFilters': '[[]]'})}
+        urllib.urlencode({
+            'query': query, 'hitsPerPage': hitsPerPage, 'page': page,
+            'facets': 'brand', 'facetFilters': '[[]]'
+            })
+        }
 
     algolia_api_data = urllib.urlencode({
         'x-algolia-api-key': Dict['Api Env']['api_key'],
         'x-algolia-application-id': Dict['Api Env']['app_id'],
-        'x-algolia-agent': Dict['Api Env']['algolia_agent']})
+        'x-algolia-agent': Dict['Api Env']['algolia_agent']
+        })
 
     host_api_url = 'https://' + Dict['Api Env']['app_id'] + '-dsn.algolia.net'
     url = host_api_url + '/1/indexes/HentaiVideo/query?' + algolia_api_data
