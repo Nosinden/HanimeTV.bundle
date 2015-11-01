@@ -1,0 +1,94 @@
+#!/usr/bin/env python
+
+"""hanime.tv Service code - Return video metadata and url"""
+
+####################################################################################################
+def NormalizeURL(url):
+    """This function should return a 'normalised' version of the given URL. Plex uses the URL"""
+
+    return url
+
+####################################################################################################
+def MetadataObjectForURL(url):
+    """
+    This function should create and return a metadata object (for example, a VideoClipOb-
+    ject) and populate it with metadata from the given URL. Only the metadata should be
+    added here - the object's key and rating_key properties will be synthesised based on the URL.
+    """
+
+    # pull info from interest url
+    data1 = JSON.ObjectFromURL(url)
+    info1 = data1['hentai_video']
+
+    description = String.StripTags(info1['description']).replace('\n', '').strip()
+    duration = int(info1['duration_in_ms'])
+    studio = info1['brand']
+    thumb = info1['poster_url']
+    tags = [t['text'] for t in info1['hentai_video_tags']]
+
+    # pull rest of info from video page url
+    id_url = url.rsplit('/', 1)[0]
+    Log('id_url = %s' %id_url)
+    data2 = JSON.ObjectFromURL(id_url)
+    info2 = data2['data'][0]
+
+    name = info2['name']
+    subs = info2['is_hard_subtitled']
+    if subs:
+        title = name + ' (Sub)'
+    else:
+        title = name
+
+    slug = info2['slug']
+    released_at = info2['released_at']
+
+
+    return VideoClipObject(
+        title=title,
+        summary=description,
+        thumb=thumb,
+        tags=tags,
+        source_title='hanime.tv',
+        originally_available_at=Datetime.ParseDate(released_at),
+        year=int(Datetime.ParseDate(released_at).year),
+        studio=studio,
+        directors=[studio],
+        content_rating='X'
+        )
+
+####################################################################################################
+def MediaObjectsForURL(url):
+    """
+    This function should create and return a list of media objects and part objects representing
+    the media available at the given URL. Callbacks may be used if obtaining the final media
+    location requires additional computation.
+    """
+
+    data = JSON.ObjectFromURL(url)
+    codes = data['hentai_video_transcodes']
+    mo = []
+
+    for node in codes:
+        fmt = node['height'] + 'p'
+        mo.append(MediaObject(
+            parts=[PartObject(key=Callback(PlayVideo, url=url, fmt=fmt))],
+            video_resolution=node['height'],
+            container=Container.MP4,
+            video_codec=VideoCodec.H264,
+            audio_codec=AudioCodec.AAC,
+            audio_channels=2,
+            optimized_for_streaming = True))
+
+    return mo
+
+####################################################################################################
+@indirect
+def PlayVideo(url, fmt, **kwargs):
+    """Format the final video url from the slug and video resolution"""
+
+    slug = url.rsplit('/', 2)[1]
+    Log.Info('slug = %s | fmt = %s' %(slug, fmt))
+
+    video_url = 'https://api.hanime.tv/api/v1/hentai_videos/' + slug + '/' + fmt + '/videoplayback.mp4'
+
+    return IndirectResponse(VideoClipObject, key=video_url)
