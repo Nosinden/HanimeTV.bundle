@@ -16,45 +16,50 @@ def MetadataObjectForURL(url):
     added here - the object's key and rating_key properties will be synthesised based on the URL.
     """
 
-    # pull info from interest url
-    data1 = JSON.ObjectFromURL(url)
-    info1 = data1['hentai_video']
+    try:
+        # pull info from interest url
+        data1 = JSON.ObjectFromURL(url)
+        info1 = data1['hentai_video']
 
-    description = String.StripTags(info1['description']).replace('\n', '').strip()
-    duration = int(info1['duration_in_ms'])
-    studio = info1['brand']
-    thumb = info1['poster_url']
-    tags = [t['text'] for t in info1['hentai_video_tags']]
+        description = String.StripTags(info1['description']).replace('\n', '').strip()
+        duration = int(info1['duration_in_ms'])
+        studio = info1['brand']
+        thumb = info1['poster_url']
+        tags = [t['text'] for t in info1['hentai_video_tags']]
 
-    # pull rest of info from video page url
-    id_url = url.rsplit('/', 1)[0]
-    Log('id_url = %s' %id_url)
-    data2 = JSON.ObjectFromURL(id_url)
-    info2 = data2['data'][0]
+        # pull rest of info from video page url
+        id_url = url.rsplit('/', 1)[0]
+        Log('id_url = %s' %id_url)
+        data2 = JSON.ObjectFromURL(id_url, errors='ignore')
+        info2 = data2['data'][0]
 
-    name = info2['name']
-    subs = info2['is_hard_subtitled']
-    if subs:
-        title = name + ' (Sub)'
-    else:
-        title = name
+        name = info2['name']
+        subs = info2['is_hard_subtitled']
+        if subs:
+            title = name + ' (Sub)'
+        else:
+            title = name
 
-    slug = info2['slug']
-    released_at = info2['released_at']
+        slug = info2['slug']
+        released_at = info2['released_at']
 
 
-    return VideoClipObject(
-        title=title,
-        summary=description,
-        thumb=thumb,
-        tags=tags,
-        source_title='hanime.tv',
-        originally_available_at=Datetime.ParseDate(released_at),
-        year=int(Datetime.ParseDate(released_at).year),
-        studio=studio,
-        directors=[studio],
-        content_rating='X'
-        )
+        return VideoClipObject(
+            title=title,
+            summary=description,
+            thumb=thumb,
+            tags=tags,
+            source_title='hanime.tv',
+            originally_available_at=Datetime.ParseDate(released_at),
+            year=int(Datetime.ParseDate(released_at).year),
+            studio=studio,
+            directors=[studio],
+            content_rating='X'
+            )
+    except:
+        title = url.rsplit('/', 2)[1].replace('_', ' ').replace('-', ' ').strip().title()
+        summary = 'Video is most likely not online yet. Please come back later.'
+        return VideoClipObject(title=title, summary=summary)
 
 ####################################################################################################
 def MediaObjectsForURL(url):
@@ -64,8 +69,12 @@ def MediaObjectsForURL(url):
     location requires additional computation.
     """
 
-    data = JSON.ObjectFromURL(url)
-    codes = data['hentai_video_transcodes']
+    try:
+        data = JSON.ObjectFromURL(url)
+        codes = data['hentai_video_transcodes']
+    except:
+        codes = [{'height': '720'}]
+
     mo = []
 
     for node in codes:
@@ -91,4 +100,10 @@ def PlayVideo(url, fmt, **kwargs):
 
     video_url = 'https://api.hanime.tv/api/v1/hentai_videos/' + slug + '/' + fmt + '/videoplayback.mp4'
 
-    return IndirectResponse(VideoClipObject, key=video_url)
+    try:
+        test = HTTP.Request(video_url)
+        Log(test.headers)
+
+        return IndirectResponse(VideoClipObject, key=video_url)
+    except:
+        raise Ex.MediaNotAvailable
