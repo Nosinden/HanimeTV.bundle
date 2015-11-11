@@ -22,11 +22,18 @@ def Start():
     DirectoryObject.thumb = R(ICON)
 
     HTTP.CacheTime = 0
-    #HTTP.Headers['User-Agent'] =
+    HTTP.Headers['User-Agent'] = (
+        'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) '
+        'Chrome/46.0.2490.86 Safari/537.36'
+        )
+    HTTP.Headers['Referer'] = BASE_URL + '/browse'
+    HTTP.Headers['Origin'] = BASE_URL
 
     Dict['Api Env'] = LoadEnvSettings()
     Log(Dict['Api Env'])
     Dict.Save()
+
+    HTTP.Headers['host'] = Dict['Api Env']['app_id'] + '-dsn.algolia.net'
 
 ####################################################################################################
 # Create the main menu
@@ -119,7 +126,7 @@ def DirectoryList(url, page, order, title, query=''):
         views = node['views']
         fav = node['favorites_count']
         tagline = 'Favorites: %s | Views: %s' %(views, fav)
-        created_at = node['created_at']
+        #created_at = node['created_at']
         released_at = node['released_at']
         description = String.StripTags(node['description'])
         tags = node['_tags']
@@ -241,7 +248,7 @@ def LoadEnvSettings():
     algolia_version_url = 'http:' + Regex('src=\"(.+algoliasearch.+?)\"').search(page_text).group(1)
     algolia_verison = HTTP.Request(algolia_version_url).content
     release_num = Regex('algoliasearch\ (\d+.+?)\ \|').search(algolia_verison).group(1)
-    agent_name = Regex('r\.ua=\"(.+?)\"').search(algolia_verison).group(1)
+    agent_name = Regex('n\.ua=\"(.+?)\"').search(algolia_verison).group(1)
     algolia_agent = agent_name + release_num
 
     api_settings = {
