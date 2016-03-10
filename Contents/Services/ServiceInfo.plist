@@ -10,12 +10,13 @@
       <string>com.plexapp.plugins.hanimetv</string>
       <key>URLPatterns</key>
       <array>
-        <string>^https://api\.hanime\.tv/api/v1/hentai_videos/(?:.+)/interest$</string>
+        <string>^https?:\/\/hanime\.tv\/hentai-videos\/(.+)$</string>
       </array>
       <key>TestURLs</key>
       <array>
-        <string>https://api.hanime.tv/api/v1/hentai_videos/inyouchuu-2/interest</string>
-        <string>https://api.hanime.tv/api/v1/hentai_videos/harem-time-2/interest</string>
+        <string>https://hanime.tv/hentai-videos/kangoku-senkan-4?r=/search</string>
+        <string>https://hanime.tv/hentai-videos/pandra-the-animation-2?r=/hentai-videos/grimoire-of-the-divine-comedy-bonus</string>
+        <string>https://hanime.tv/hentai-videos/pandra-the-animation-2</string>
       </array>
     </dict>
   </dict>

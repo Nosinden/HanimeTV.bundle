@@ -2,21 +2,19 @@
 
 """hanime.tv Service code - Return video metadata and url"""
 
-user_agent = (
+USER_AGENT = (
     'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) '
     'Chrome/46.0.2490.86 Safari/537.36'
     )
 
-HEADERS = {
-    'host': 'api.hanime.tv', 'method': 'GET', 'scheme': 'https', 'version': 'HTTP/1.1',
-    'accept': 'application/json, text/plain, */*', 'accept-encoding': 'gzip, deflate, sdch',
-    'accept-language': 'en-US, en;q=0.8', 'dnt': 1, 'origin': 'https://hanime.tv',
-    'user-agent': user_agent, 'x-requested-with': 'XMLHttpRequest'
-    }
+HEADERS = {'user-agent': USER_AGENT}
 
 ####################################################################################################
 def NormalizeURL(url):
     """This function should return a 'normalised' version of the given URL. Plex uses the URL"""
+
+    if '?' in url:
+        url = url.split('?')[0]
 
     return url
 
@@ -27,71 +25,46 @@ def MetadataObjectForURL(url):
     ject) and populate it with metadata from the given URL. Only the metadata should be
     added here - the object's key and rating_key properties will be synthesised based on the URL.
     """
-    """
-    title = url.rsplit('/', 2)[1].replace('_', ' ').replace('-', ' ').strip().title()
-    #summary = 'Video is most likely not online yet. Please come back later.'
 
-    return VideoClipObject(title=title)
-    """
-    path = '/' + url.split('/', 3)[-1]
-    referer = url.rsplit('/', 1)[0]
-    Log(path)
-    Log(referer)
-    HEADERS.update({'path': path, 'referer': referer})
+    html = HTML.ElementFromURL(url)
 
-    try:
-        # pull info from interest url
-        data1 = JSON.ObjectFromURL(url, headers=HEADERS)
-        info1 = data1['hentai_video']
+    d = None
+    for node in html.xpath('//script'):
+        node_text = node.text_content()
+        match = Regex('water\ \=(.*)').search(node_text)
+        if match:
+            d = JSON.ObjectFromString(match.group(1).strip().rstrip(';'))
+            break
 
-        description = String.StripTags(info1['description']).replace('\n', '').strip()
-        duration = int(info1['duration_in_ms'])
-        studio = info1['brand']
-        thumb = info1['poster_url']
-        tags = [t['text'] for t in info1['hentai_video_tags']]
+    if not d:
+        raise Ex.MediaNotAvailable
 
+    title = d['hentai_franchise']['title']
+    sub = d['video']['is_hard_subtitled']
+    name = title + ' (Sub)' if sub else title
 
+    genres = sorted([g['text'] for g in d['hentai_tags']])
+    summary = String.StripTags(d['video']['description']).replace('\n', '').strip()
+    date = d['video']['released_at']
+    thumb = d['video']['poster_url']
+    views = d['video']['views']
+    fav = d['video']['favorites_count']
+    tagline = 'Favorites: %s | Views: %s' %(fav, views)
+    brand = d['video']['brand']
 
-        # pull rest of info from video page url
-        id_url = url.rsplit('/', 1)[0]
-        Log('id_url = %s' %id_url)
-        data2 = JSON.ObjectFromURL(id_url, headers=HEADERS, errors='ignore')
-        info2 = data2['data'][0]
-
-        name = info2['name']
-        subs = info2['is_hard_subtitled']
-        if subs:
-            title = name + ' (Sub)'
-        else:
-            title = name
-
-        slug = info2['slug']
-        released_at = info2['released_at']
-
-        """
-        slug = url.split('/', 2)[1]
-        Log(slug)
-        name = slug.replace('_', ' ').replace('-', ' ').strip().title()
-        #released_at = None
-        """
-
-        return VideoClipObject(
-            title=title,
-            summary=description,
-            thumb=thumb,
-            tags=tags,
-            source_title='hanime.tv',
-            originally_available_at=Datetime.ParseDate(released_at),
-            year=int(Datetime.ParseDate(released_at).year),
-            studio=studio,
-            directors=[studio],
-            content_rating='X'
-            )
-    except:
-        title = url.rsplit('/', 2)[1].replace('_', ' ').replace('-', ' ').strip().title()
-        summary = 'Video is most likely not online yet. Please come back later.'
-        return VideoClipObject(title=title, summary=summary)
-
+    return VideoClipObject(
+        title=name,
+        summary=summary,
+        thumb=thumb,
+        genres=genres,
+        source_title='hanime.tv',
+        tagline=tagline,
+        originally_available_at=Datetime.ParseDate(date),
+        year=int(Datetime.ParseDate(date).year),
+        studio=brand,
+        directors=[brand],
+        content_rating='X'
+        )
 
 ####################################################################################################
 def MediaObjectsForURL(url):
@@ -101,30 +74,19 @@ def MediaObjectsForURL(url):
     location requires additional computation.
     """
 
-    path = '/' + url.split('/', 3)[-1]
-    referer = url.rsplit('/', 1)[0]
-    Log(path)
-    Log(referer)
-    HEADERS.update({'path': path, 'referer': referer})
-
-    try:
-        data = JSON.ObjectFromURL(url, headers=HEADERS)
-        codes = data['hentai_video_transcodes']
-    except:
-        codes = [{'height': '720'}]
-
     mo = []
+    fmt_list = ['720','360']
 
-    for node in codes:
-        fmt = node['height'] + 'p'
+    for fmt in fmt_list:
         mo.append(MediaObject(
             parts=[PartObject(key=Callback(PlayVideo, url=url, fmt=fmt))],
-            video_resolution=node['height'],
+            video_resolution=fmt,
             container=Container.MP4,
             video_codec=VideoCodec.H264,
             audio_codec=AudioCodec.AAC,
             audio_channels=2,
-            optimized_for_streaming = True))
+            optimized_for_streaming=True
+            ))
 
     return mo
 
@@ -133,15 +95,30 @@ def MediaObjectsForURL(url):
 def PlayVideo(url, fmt, **kwargs):
     """Format the final video url from the slug and video resolution"""
 
-    slug = url.rsplit('/', 2)[1]
-    Log.Info('slug = %s | fmt = %s' %(slug, fmt))
+    fmt_dict = {'1080': '37', '720': '22', '360': '18'}
 
-    video_url = 'https://api.hanime.tv/api/v1/hentai_videos/' + slug + '/' + fmt + '/videoplayback.mp4'
+    html = HTML.ElementFromURL(url)
 
-    try:
-        #test = HTTP.Request(video_url)
-        #Log(test.headers)
+    d = None
+    for node in html.xpath('//script'):
+        node_text = node.text_content()
+        match = Regex('water\ \=(.*)').search(node_text)
+        if match:
+            d = JSON.ObjectFromString(match.group(1).strip().rstrip(';'))
+            break
 
-        return IndirectResponse(VideoClipObject, key=video_url)
-    except:
+    if not d:
+        raise Ex.MediaNotAvailable
+
+    urls = [(v['cached_itag_url'], v['height']) for v in d['transcodes'] if v['file_format_extension'] == 'mp4']
+    vurl = None
+    for u, h in sorted(urls, key=lambda tup: tup[1]):
+        vurl = u
+        itag = Regex('itag\=(\d+)').search(u).group(1)
+        if fmt_dict[fmt] == str(itag):
+            break
+
+    if vurl:
+        return IndirectResponse(VideoClipObject, key=vurl)
+    else:
         raise Ex.MediaNotAvailable
