@@ -6,7 +6,7 @@
 # import modules
 import messages
 import urllib2
-#from updater import Updater
+from updater import Updater
 from DumbTools import DumbKeyboard
 
 # set global variablesi
@@ -42,9 +42,9 @@ def Start():
 def MainMenu():
     """Create the Main Menu"""
 
-    oc = ObjectContainer(title2=TITLE)
+    oc = ObjectContainer(title2=TITLE, no_cache=True)
 
-    #Updater(PREFIX + '/updater', oc)
+    Updater(PREFIX + '/updater', oc)
 
     oc.add(DirectoryObject(
         key=Callback(DirectoryList, page=0, sort_by='name.raw', title='ABC'),
