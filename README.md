@@ -19,8 +19,3 @@ How To Install
 - Unzip and rename the folder to "HanimeTV.bundle"
 - Copy "HanimeTV.bundle" into the PMS [Plug-ins](https://support.plex.tv/hc/en-us/articles/201106098-How-do-I-find-the-Plug-Ins-folder-) directory
 - Restart PMS if need be
-
-ChangeLog
----------
-
-**0.01** - 10/31/15 - First push of local code to GitHub

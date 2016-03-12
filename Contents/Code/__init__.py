@@ -5,6 +5,9 @@
 ####################################################################################################
 # import modules
 import messages
+import urllib2
+#from updater import Updater
+from DumbTools import DumbKeyboard
 
 # set global variablesi
 PREFIX = '/video/hanimetv'
@@ -32,7 +35,7 @@ def Start():
     InputDirectoryObject.art = R(ART)
     VideoClipObject.art = R(ART)
 
-    HTTP.CacheTime = 0
+    HTTP.CacheTime = CACHE_1HOUR
 
 ####################################################################################################
 @handler(PREFIX, TITLE, thumb=ICON, art=ART)
@@ -41,36 +44,65 @@ def MainMenu():
 
     oc = ObjectContainer(title2=TITLE)
 
-    #q=&search_by=all&sort_by=name.raw&sort_by_ordering=desc&search_from=0&page_size=30
+    #Updater(PREFIX + '/updater', oc)
+
     oc.add(DirectoryObject(
         key=Callback(DirectoryList, page=0, sort_by='name.raw', title='ABC'),
         title='Alphabetical'))
-    #q=&search_by=all&sort_by=created_at&sort_by_ordering=desc&search_from=0&page_size=48
+
     oc.add(DirectoryObject(
-        key=Callback(DirectoryList, page=0, sort_by='created_at', title='Upload Date'),
-        title='Upload Date'))
-    #q=&search_by=all&sort_by=released_at&sort_by_ordering=desc&search_from=0&page_size=48
-    oc.add(DirectoryObject(
-        key=Callback(DirectoryList, page=0, sort_by='released_at', title='Release Date'),
-        title='Release Date'))
-    #q=&search_by=all&sort_by=views&sort_by_ordering=desc&search_from=0&page_size=48
+        key=Callback(BrandList, title='Brands'),
+        title='Brands'))
+
     oc.add(DirectoryObject(
         key=Callback(DirectoryList, page=0, sort_by='views', title='Views'),
         title='Views'))
-    #q=&search_by=all&sort_by=favorites_count&sort_by_ordering=desc&search_from=0&page_size=48
+
     oc.add(DirectoryObject(
         key=Callback(DirectoryList, page=0, sort_by='favorites_count', title='Favorites'),
         title='Favorites'))
-    """
-    oc.add(InputDirectoryObject(
-        key=Callback(Search),
-        title='Search', summary='Search Hanime.tv', prompt='Search for...'))
-    """
+
+    oc.add(DirectoryObject(
+        key=Callback(DirectoryList, page=0, sort_by='created_at', title='Upload Date'),
+        title='Upload Date'))
+
+    oc.add(DirectoryObject(
+        key=Callback(DirectoryList, page=0, sort_by='released_at', title='Release Date'),
+        title='Release Date'))
+
+    if Client.Product in DumbKeyboard.clients:
+        DumbKeyboard(PREFIX, oc, Search, dktitle='Search', dkthumb=R('icon-search.png'))
+    else:
+        oc.add(InputDirectoryObject(
+            key=Callback(Search),
+            title='Search', summary='Search Hanime.tv', prompt='Search for...'))
+
+    return oc
+
+####################################################################################################
+@route(PREFIX + '/brandlist')
+def BrandList(title):
+    """Setup brand list"""
+
+    oc = ObjectContainer(title2=title)
+
+    html = HTML.ElementFromURL(BASE_URL + '/search')
+    tup = []
+    for b in html.xpath('//div[@class="htv-select-multiple inverse"]//span/text()'):
+        nb = b.lower().replace('.', '').replace('-', '')
+        if (b, nb) not in tup:
+            tup.append((b, nb))
+
+    for t, b in sorted(tup):
+        oc.add(DirectoryObject(
+            key=Callback(DirectoryList, page=0, sort_by='created_at', brand=b, title=t),
+            title=t))
+
     return oc
 
 ####################################################################################################
 @route(PREFIX + '/directorylist', page=int)
-def DirectoryList(page, sort_by, title, query=''):
+def DirectoryList(page, sort_by, title, brand='all', query=''):
     """Directory does the Heavy lifting"""
 
 
@@ -78,10 +110,17 @@ def DirectoryList(page, sort_by, title, query=''):
     search_from = page_size * page if page > 0 else page
     query = String.Quote(query, usePlus=True) if query else ''
 
-    req_data = (
-        'q=%s&search_by=all&sort_by=%s&sort_by_ordering=desc&search_from=%i&page_size=%i'
-        %(query, sort_by, search_from, page_size)
-        )
+    if brand == 'all':
+        req_data = (
+            'q=%s&search_by=all&sort_by=%s&sort_by_ordering=desc&search_from=%i&page_size=%i'
+            %(query, sort_by, search_from, page_size)
+            )
+    else:
+        req_data = (
+            'q=%s&search_by=all&brands[]=%s&sort_by=%s&sort_by_ordering=desc&search_from=%i&page_size=%i'
+            %(query, brand, sort_by, search_from, page_size)
+            )
+        req_data = urllib2.quote(req_data, '&://?=')
 
     h = {
         'origin': BASE_URL, 'referer': BASE_URL + '/search', 'user-agent': USER_AGENT,
@@ -101,10 +140,8 @@ def DirectoryList(page, sort_by, title, query=''):
 
     if total <= page_size:
         main_title = title
-    elif (total > page_size) and (page != last_page):
-        main_title = '%s / Page %i of %i' %(title, page, last_page)
     else:
-        main_title = '%s / Page %i / Last Page' %(title, page)
+        main_title = '%s / Page %i of %i' %(title, page+1, last_page)
 
     oc = ObjectContainer(title2=main_title)
 
@@ -119,7 +156,7 @@ def DirectoryList(page, sort_by, title, query=''):
         released_at = d['_source']['released_at']
         description = String.StripTags(d['_source']['description'])
         tags = [x['text'] for x in d['_source']['hentai_tags']]
-        brand = d['_source']['brand']
+        nbrand = d['_source']['brand']
         cover_url = d['_source']['cover_url']
         video_url = BASE_URL + '/hentai-videos/' + slug
 
@@ -133,8 +170,8 @@ def DirectoryList(page, sort_by, title, query=''):
                 source_title='hanime.tv',
                 originally_available_at=Datetime.ParseDate(released_at),
                 year=int(Datetime.ParseDate(released_at).year),
-                studio=brand,
-                directors=[brand],
+                studio=nbrand,
+                directors=[nbrand],
                 tagline=tagline,
                 content_rating='X'
                 )
@@ -144,105 +181,20 @@ def DirectoryList(page, sort_by, title, query=''):
         oc.add(NextPageObject(
             key=Callback(
                 DirectoryList, page=next_page, sort_by=sort_by,
-                title=title, query=query),
+                title=title, query=query, brand=brand),
             title='Next Page>>'))
 
     if len(oc) > 0:
         return oc
     else:
         return MC.message_container('Warning', 'Page Empty')
-"""
+
 ####################################################################################################
 @route(PREFIX + '/search')
 def Search(query=''):
+    """Setup search"""
+
+    query = query.strip()
     Log.Info('search term = %s' %query)
 
-    query = String.Quote(query, usePlus=False)
-    hitsPerPage = 20
-    page = 0
-
-    form_data = {'params':
-        urllib2.urlencode({
-            'query': query, 'hitsPerPage': hitsPerPage, 'page': page,
-            'facets': 'brand', 'facetFilters': '[[]]'
-            })
-        }
-
-    algolia_api_data = urllib2.urlencode({
-        'x-algolia-api-key': Dict['Api Env']['api_key'],
-        'x-algolia-application-id': Dict['Api Env']['app_id'],
-        'x-algolia-agent': Dict['Api Env']['algolia_agent']
-        })
-
-    host_api_url = 'https://' + Dict['Api Env']['app_id'] + '-dsn.algolia.net'
-    url = host_api_url + '/1/indexes/HentaiVideo/query?' + algolia_api_data
-
-    r = HTTP.Request(url, data=json.dumps(form_data))
-    Log(r.headers)
-    data = JSON.ObjectFromString(r.content)
-
-    if not int(data['nbHits']) > 0:
-        return MessageContainer(
-            'Warning',
-            'There are no search results for \"%s\". Try being less specific.' %query)
-    else:
-        pass
-
-    oc = ObjectContainer(title2='Search')
-
-    oc.add(DirectoryObject(
-        key=Callback(
-            DirectoryList, url=BASE_URL, page=0, order='',
-            title='Latest', query=query),
-        title='Sort by Latest'))
-    oc.add(DirectoryObject(
-        key=Callback(
-            DirectoryList, url=BASE_URL, page=0, order='_views_desc',
-            title='Views', query=query),
-        title='Sort by Views'))
-    oc.add(DirectoryObject(
-        key=Callback(
-            DirectoryList, url=BASE_URL, page=0, order='_favorites_count_desc',
-            title='Favorites', query=query),
-        title='Sort by Favorites'))
-    oc.add(DirectoryObject(
-        key=Callback(DirectoryList, url=BASE_URL, page=0, order='_released_at_desc',
-            title='Realse Date', query=query),
-        title='Sort by Release Date'))
-    oc.add(DirectoryObject(
-        key=Callback(DirectoryList, url=BASE_URL, page=0, order='_alphabetical_desc',
-            title='ABC', query=query),
-        title='Sort by Alphabetical'))
-
-    return oc
-
-####################################################################################################
-@route(PREFIX + '/loadenvsettings')
-def LoadEnvSettings():
-    \"\"\"Load Defaults\"\"\"
-
-    # find algolia api settings from env_settings.js
-    page_text = HTTP.Request(BASE_URL).content
-    env_settings_url = 'https:' + Regex('src=\"(.+env_settings.+?)\"').search(page_text).group(1)
-
-    env_settings = HTTP.Request(env_settings_url).content
-    api_base_url = Regex('api_base_url\:\ \'(.+)\'').search(env_settings).group(1)
-    algolia_search_application_id = Regex('algolia_search_application_id\:\ \'(.+)\'').search(env_settings).group(1)
-    algolia_search_search_only_api_key = Regex('algolia_search_search_only_api_key\:\ \'(.+)\'').search(env_settings).group(1)
-
-    # find algolia agent name
-    algolia_version_url = 'http:' + Regex('src=\"(.+algoliasearch.+?)\"').search(page_text).group(1)
-    algolia_verison = HTTP.Request(algolia_version_url).content
-    release_num = Regex('algoliasearch\ (\d+.+?)\ \|').search(algolia_verison).group(1)
-    agent_name = Regex('n\.ua=\"(.+?)\"').search(algolia_verison).group(1)
-    algolia_agent = agent_name + release_num
-
-    api_settings = {
-        'url': api_base_url,
-        'app_id': algolia_search_application_id,
-        'api_key': algolia_search_search_only_api_key,
-        'algolia_agent': algolia_agent
-        }
-
-    return api_settings
-"""
+    return DirectoryList(page=0, sort_by='created_at', query=query, brand='all', title='Search')

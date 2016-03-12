@@ -2,13 +2,6 @@
 
 """hanime.tv Service code - Return video metadata and url"""
 
-USER_AGENT = (
-    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) '
-    'Chrome/46.0.2490.86 Safari/537.36'
-    )
-
-HEADERS = {'user-agent': USER_AGENT}
-
 ####################################################################################################
 def NormalizeURL(url):
     """This function should return a 'normalised' version of the given URL. Plex uses the URL"""
@@ -52,10 +45,14 @@ def MetadataObjectForURL(url):
     tagline = 'Favorites: %s | Views: %s' %(fav, views)
     brand = d['video']['brand']
 
+    time_stamp = int(Datetime.TimestampFromDatetime(Datetime.Now()))
+    art = '/:/plugins/com.plexapp.plugins.hanimetv/resources/art-default.jpg?t=%s' %str(time_stamp)
+
     return VideoClipObject(
         title=name,
         summary=summary,
         thumb=thumb,
+        art=art,
         genres=genres,
         source_title='hanime.tv',
         tagline=tagline,
