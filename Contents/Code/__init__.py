@@ -173,7 +173,7 @@ def DirectoryList(page, sort_by, title, brand='all', sort_by_ordering='desc', qu
         description = String.StripTags(d['_source']['description'])
         tags = [x['text'] for x in d['_source']['hentai_tags']]
         nbrand = d['_source']['brand']
-        duration = int(d['source']['duration_in_ms'])
+        duration = int(d['_source']['duration_in_ms'])
         cover_url = d['_source']['cover_url']
         video_url = BASE_URL + '/hentai-videos/' + slug
 

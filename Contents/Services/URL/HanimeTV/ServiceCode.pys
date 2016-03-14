@@ -49,11 +49,11 @@ def MetadataObjectForURL(url):
     art = '/:/plugins/com.plexapp.plugins.hanimetv/resources/art-default.jpg?t=%s' %str(time_stamp)
 
     duration = None
-    urls = [(v['cached_itag_url'], v['height']) for v in jdata['transcodes'] if v['file_format_extension'] == 'mp4']
+    urls = [(v['cached_itag_url'], v['height']) for v in d['transcodes'] if v['file_format_extension'] == 'mp4']
     if urls:
         dur = Regex('dur=(\d+(?:\.\d+|))\&').search(urls[0][0])
         if dur:
-            duration = int(60000 * float(dur.group(1)))
+            duration = int(1000 * float(dur.group(1)))
 
     return VideoClipObject(
         title=name,
