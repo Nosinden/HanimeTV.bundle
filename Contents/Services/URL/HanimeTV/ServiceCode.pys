@@ -48,9 +48,17 @@ def MetadataObjectForURL(url):
     time_stamp = int(Datetime.TimestampFromDatetime(Datetime.Now()))
     art = '/:/plugins/com.plexapp.plugins.hanimetv/resources/art-default.jpg?t=%s' %str(time_stamp)
 
+    duration = None
+    urls = [(v['cached_itag_url'], v['height']) for v in jdata['transcodes'] if v['file_format_extension'] == 'mp4']
+    if urls:
+        dur = Regex('dur=(\d+(?:\.\d+|))\&').search(urls[0][0])
+        if dur:
+            duration = int(60000 * float(dur.group(1)))
+
     return VideoClipObject(
         title=name,
         summary=summary,
+        duration=duration,
         thumb=thumb,
         art=art,
         genres=genres,

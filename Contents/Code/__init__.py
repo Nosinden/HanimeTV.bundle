@@ -36,6 +36,7 @@ def Start():
     VideoClipObject.art = R(ART)
 
     HTTP.CacheTime = CACHE_1HOUR
+    #HTTP.CacheTime = 0
 
 ####################################################################################################
 @handler(PREFIX, TITLE, thumb=ICON, art=ART)
@@ -47,7 +48,7 @@ def MainMenu():
     Updater(PREFIX + '/updater', oc)
 
     oc.add(DirectoryObject(
-        key=Callback(DirectoryList, page=0, sort_by='name.raw', title='ABC'),
+        key=Callback(ABCList, page=0, sort_by='name.raw', title='Alphabetical'),
         title='Alphabetical'))
 
     oc.add(DirectoryObject(
@@ -80,6 +81,21 @@ def MainMenu():
     return oc
 
 ####################################################################################################
+@route(PREFIX + '/abc')
+def ABCList(page, sort_by, title):
+    """Setup ABC list"""
+
+    oc = ObjectContainer(title2=title)
+
+    abc_list = [('A-Z', 'asc'), ('Z-A', 'desc')]
+    for (n, l) in abc_list:
+        oc.add(DirectoryObject(
+            key=Callback(DirectoryList, page=0, sort_by='name.raw', sort_by_ordering=l, title=n),
+            title=n))
+
+    return oc
+
+####################################################################################################
 @route(PREFIX + '/brandlist')
 def BrandList(title):
     """Setup brand list"""
@@ -102,7 +118,7 @@ def BrandList(title):
 
 ####################################################################################################
 @route(PREFIX + '/directorylist', page=int)
-def DirectoryList(page, sort_by, title, brand='all', query=''):
+def DirectoryList(page, sort_by, title, brand='all', sort_by_ordering='desc', query=''):
     """Directory does the Heavy lifting"""
 
 
@@ -112,13 +128,13 @@ def DirectoryList(page, sort_by, title, brand='all', query=''):
 
     if brand == 'all':
         req_data = (
-            'q=%s&search_by=all&sort_by=%s&sort_by_ordering=desc&search_from=%i&page_size=%i'
-            %(query, sort_by, search_from, page_size)
+            'q=%s&search_by=all&sort_by=%s&sort_by_ordering=%s&search_from=%i&page_size=%i'
+            %(query, sort_by, sort_by_ordering, search_from, page_size)
             )
     else:
         req_data = (
-            'q=%s&search_by=all&brands[]=%s&sort_by=%s&sort_by_ordering=desc&search_from=%i&page_size=%i'
-            %(query, brand, sort_by, search_from, page_size)
+            'q=%s&search_by=all&brands[]=%s&sort_by=%s&sort_by_ordering=%s&search_from=%i&page_size=%i'
+            %(query, brand, sort_by, sort_by_ordering, search_from, page_size)
             )
         req_data = urllib2.quote(req_data, '&://?=')
 
@@ -157,6 +173,7 @@ def DirectoryList(page, sort_by, title, brand='all', query=''):
         description = String.StripTags(d['_source']['description'])
         tags = [x['text'] for x in d['_source']['hentai_tags']]
         nbrand = d['_source']['brand']
+        duration = int(d['source']['duration_in_ms'])
         cover_url = d['_source']['cover_url']
         video_url = BASE_URL + '/hentai-videos/' + slug
 
@@ -167,6 +184,7 @@ def DirectoryList(page, sort_by, title, brand='all', query=''):
                 thumb=cover_url,
                 url=video_url,
                 tags=tags,
+                duration=duration,
                 source_title='hanime.tv',
                 originally_available_at=Datetime.ParseDate(released_at),
                 year=int(Datetime.ParseDate(released_at).year),
