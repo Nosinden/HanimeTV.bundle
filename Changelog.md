@@ -1,5 +1,12 @@
 # ChangeLog
 
+##### 1.0.2
+- _03/29/2016_
+  - Fixed Search URL
+  - Fixed Video URLs
+  - Added new Preference to allow for Remote Play
+    - allows for video playback outside of local network
+
 ##### 1.0.1
 - _03/12/2016_
   - Enabled updater

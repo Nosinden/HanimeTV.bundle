@@ -9,6 +9,7 @@ This is a plugin that creates a new channel in Plex Media Server (PMS) to view c
 
 - Watch Free HD Hentai videos (quality ranges from 360p to 720p)
 - Search videos
+- Update Channel Internally
 
 ## How To Install
 
