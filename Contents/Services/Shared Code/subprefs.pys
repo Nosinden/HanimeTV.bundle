@@ -1,0 +1,34 @@
+#!/usr/bin/env python
+import os
+from io import open
+
+PREFS_PATH = os.path.join(
+    os.getcwd().lstrip('\\\?').rsplit('Plug-in Support')[0],
+    'Plug-in Support', 'Preferences', 'com.plexapp.plugins.hanimetv.xml'
+    )
+
+def GetPrefs():
+    prefs_string = load_prefs()
+    if prefs_string:
+        root = XML.ElementFromString(prefs_string)
+        for i, child in enumerate(root):
+            if i == 0:
+                prefs_dict = {child.tag: child.text}
+            else:
+                prefs_dict.update({child.tag: child.text})
+    else:
+        prefs_dict = {'prefs_file': 'false'}
+
+    return prefs_dict
+
+def load_prefs():
+    if os.path.isfile(PREFS_PATH) and os.stat(PREFS_PATH).st_size != 0:
+        Log.Debug('* Prefs file found')
+        f = open(PREFS_PATH)
+        prefs_string = f.read()
+        f.close()
+    else:
+        Log.Debug('* No Prefs file yet')
+        prefs_string = False
+
+    return prefs_string

@@ -2,6 +2,13 @@
 
 """hanime.tv Service code - Return video metadata and url"""
 
+from subprefs import GetPrefs
+
+USER_AGENT = (
+    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) '
+    'Chrome/46.0.2490.86 Safari/537.36'
+    )
+
 ####################################################################################################
 def NormalizeURL(url):
     """This function should return a 'normalised' version of the given URL. Plex uses the URL"""
@@ -81,17 +88,29 @@ def MediaObjectsForURL(url):
 
     mo = []
     fmt_list = ['720','360']
+    prefs = get_prefs()
 
-    for fmt in fmt_list:
-        mo.append(MediaObject(
-            parts=[PartObject(key=Callback(PlayVideo, url=url, fmt=fmt))],
-            video_resolution=fmt,
-            container=Container.MP4,
-            video_codec=VideoCodec.H264,
-            audio_codec=AudioCodec.AAC,
-            audio_channels=2,
-            optimized_for_streaming=True
-            ))
+    if prefs['remote'] == 'true':
+        Log.Debug('* Enable Remote Play')
+        for fmt in fmt_list:
+            mo.append(MediaObject(
+                parts=[PartObject(key=Callback(PlayVideo, url=url, fmt=fmt))],
+                video_resolution=fmt,
+                audio_channels=2,
+                optimized_for_streaming=False
+                ))
+    else:
+        Log.Debug('* Local Network Play Only')
+        for fmt in fmt_list:
+            mo.append(MediaObject(
+                parts=[PartObject(key=Callback(PlayVideo, url=url, fmt=fmt))],
+                video_resolution=fmt,
+                container=Container.MP4,
+                video_codec=VideoCodec.H264,
+                audio_codec=AudioCodec.AAC,
+                audio_channels=2,
+                optimized_for_streaming=True
+                ))
 
     return mo
 
@@ -101,8 +120,15 @@ def PlayVideo(url, fmt, **kwargs):
     """Format the final video url from the slug and video resolution"""
 
     fmt_dict = {'1080': '37', '720': '22', '360': '18'}
+    headers = {
+        'User-Agent': USER_AGENT, 'Referer': url, 'Accept-Language': 'en-US,en;q=0.5',
+        'Range': 'bytes=0-', 'Connection': 'keep-alive', 'DNT': '1', 'Host': 'redirector.googlevideo.com',
+        'Accept': 'video/webm,video/ogg,video/*;q=0.9,application/ogg;q=0.7,audio/*;q=0.6,*/*;q=0.5'
+        }
+    h_two = {'User-Agent': USER_AGENT, 'Referer': url}
 
-    html = HTML.ElementFromURL(url)
+    #html = HTML.ElementFromURL(url, headers={'user-agent': USER_AGENT})
+    html = HTML.ElementFromURL(url, headers=h_two)
 
     d = None
     for node in html.xpath('//script'):
@@ -118,12 +144,26 @@ def PlayVideo(url, fmt, **kwargs):
     urls = [(v['cached_itag_url'], v['height']) for v in d['transcodes'] if v['file_format_extension'] == 'mp4']
     vurl = None
     for u, h in sorted(urls, key=lambda tup: tup[1]):
-        vurl = u
-        itag = Regex('itag\=(\d+)').search(u).group(1)
-        if fmt_dict[fmt] == str(itag):
+        vurl = 'https://hanime.tv/consume_media/5c' + u
+        if fmt == h:
             break
+
+    Log.Debug('* PlayVideo URL      = %s' %vurl)
 
     if vurl:
         return IndirectResponse(VideoClipObject, key=vurl)
     else:
         raise Ex.MediaNotAvailable
+
+####################################################################################################
+def get_prefs():
+    """
+    Get Prefs
+    If a new key has not been added yet, do so here
+    """
+
+    prefs = GetPrefs()
+    if not 'remote' in prefs.keys():
+        prefs.update({'remote': 'false'})
+
+    return prefs

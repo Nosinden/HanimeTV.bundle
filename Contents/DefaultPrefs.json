@@ -1,0 +1,8 @@
+[
+  {
+    "id": "remote",
+    "label": "Enable Remote Play",
+    "type": "bool",
+    "default": "False",
+  }
+]

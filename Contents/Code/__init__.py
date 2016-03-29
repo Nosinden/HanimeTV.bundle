@@ -5,15 +5,17 @@
 ####################################################################################################
 # import modules
 import messages
+from common import load_search_url
 import urllib2
 from updater import Updater
 from DumbTools import DumbKeyboard
+from DumbTools import DumbPrefs
 
 # set global variablesi
 PREFIX = '/video/hanimetv'
 TITLE = 'Hanime.tv'
 BASE_URL = 'https://hanime.tv'
-SEARCH_BASE_URL = 'https://one-piece.hanime.tv'
+SEARCH_BASE_URL = load_search_url(BASE_URL)
 ICON = 'icon-default.png'
 ART = 'art-default.jpg'
 
@@ -36,7 +38,6 @@ def Start():
     VideoClipObject.art = R(ART)
 
     HTTP.CacheTime = CACHE_1HOUR
-    #HTTP.CacheTime = 0
 
 ####################################################################################################
 @handler(PREFIX, TITLE, thumb=ICON, art=ART)
@@ -70,6 +71,11 @@ def MainMenu():
     oc.add(DirectoryObject(
         key=Callback(DirectoryList, page=0, sort_by='released_at', title='Release Date'),
         title='Release Date'))
+
+    if Client.Product in DumbPrefs.clients:
+        DumbPrefs(PREFIX, oc, title='Preferences', thumb=R('icon-prefs.png'))
+    else:
+        oc.add(PrefsObject(title='Preferences', thumb=R('icon-prefs.png')))
 
     if Client.Product in DumbKeyboard.clients:
         DumbKeyboard(PREFIX, oc, Search, dktitle='Search', dkthumb=R('icon-search.png'))
