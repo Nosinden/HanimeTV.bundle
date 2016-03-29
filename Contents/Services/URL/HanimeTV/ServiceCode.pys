@@ -120,15 +120,9 @@ def PlayVideo(url, fmt, **kwargs):
     """Format the final video url from the slug and video resolution"""
 
     fmt_dict = {'1080': '37', '720': '22', '360': '18'}
-    headers = {
-        'User-Agent': USER_AGENT, 'Referer': url, 'Accept-Language': 'en-US,en;q=0.5',
-        'Range': 'bytes=0-', 'Connection': 'keep-alive', 'DNT': '1', 'Host': 'redirector.googlevideo.com',
-        'Accept': 'video/webm,video/ogg,video/*;q=0.9,application/ogg;q=0.7,audio/*;q=0.6,*/*;q=0.5'
-        }
-    h_two = {'User-Agent': USER_AGENT, 'Referer': url}
+    headers = {'User-Agent': USER_AGENT, 'Referer': url}
 
-    #html = HTML.ElementFromURL(url, headers={'user-agent': USER_AGENT})
-    html = HTML.ElementFromURL(url, headers=h_two)
+    html = HTML.ElementFromURL(url, headers=headers)
 
     d = None
     for node in html.xpath('//script'):
