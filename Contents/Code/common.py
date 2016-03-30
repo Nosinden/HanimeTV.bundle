@@ -5,10 +5,10 @@ common code for Hanime.tv
 currently used to preload the Base Search URL
 """
 
-def load_search_url(url):
+def load_search_url(url, user_agent):
     """Get current Base Search URL"""
 
-    html = HTML.ElementFromURL(url)
+    html = HTML.ElementFromURL(url, headers={'User-Agent': user_agent})
 
     d = None
     search_url = False

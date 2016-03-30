@@ -3,6 +3,7 @@
 """hanime.tv Service code - Return video metadata and url"""
 
 from subprefs import GetPrefs
+from aadecode import decode_aaencode
 
 USER_AGENT = (
     'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) '
@@ -119,27 +120,31 @@ def MediaObjectsForURL(url):
 def PlayVideo(url, fmt, **kwargs):
     """Format the final video url from the slug and video resolution"""
 
-    fmt_dict = {'1080': '37', '720': '22', '360': '18'}
     headers = {'User-Agent': USER_AGENT, 'Referer': url}
-
-    html = HTML.ElementFromURL(url, headers=headers)
+    s = HTTP.Request(url, headers=headers, encoding=('utf-8')).content
+    html = HTML.ElementFromString(s)
 
     d = None
     for node in html.xpath('//script'):
         node_text = node.text_content()
-        match = Regex('water\ \=(.*)').search(node_text)
+        match = Regex('water\ \=(.*);').search(node_text)
         if match:
-            d = JSON.ObjectFromString(match.group(1).strip().rstrip(';'))
+            d = JSON.ObjectFromString(match.group(1).strip())
             break
 
     if not d:
         raise Ex.MediaNotAvailable
 
-    urls = [(v['cached_itag_url'], v['height']) for v in d['transcodes'] if v['file_format_extension'] == 'mp4']
+    urls = [(v['cached_itag_url'], v['height'], v['file_format_extension']) for v in d['transcodes']]
+    var_is = decode_aaencode(s)
+    nurls = []
+    for i, (cache, height, ext) in enumerate(urls):
+        nurls.append(('/consume_media/' + cache + var_is[i], height, ext))
+
     vurl = None
-    for u, h in sorted(urls, key=lambda tup: tup[1]):
-        vurl = 'https://hanime.tv/consume_media/5c' + u
-        if fmt == h:
+    for u, h, f in sorted(nurls, key=lambda tup: tup[1]):
+        vurl = 'https://hanime.tv' + u
+        if (fmt == h) and (f == 'mp4'):
             break
 
     Log.Debug('* PlayVideo URL      = %s' %vurl)

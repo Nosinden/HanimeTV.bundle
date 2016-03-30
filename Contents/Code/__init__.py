@@ -15,7 +15,6 @@ from DumbTools import DumbPrefs
 PREFIX = '/video/hanimetv'
 TITLE = 'Hanime.tv'
 BASE_URL = 'https://hanime.tv'
-SEARCH_BASE_URL = load_search_url(BASE_URL)
 ICON = 'icon-default.png'
 ART = 'art-default.jpg'
 
@@ -23,6 +22,8 @@ USER_AGENT = (
     'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) '
     'Chrome/46.0.2490.86 Safari/537.36'
     )
+
+SEARCH_BASE_URL = load_search_url(BASE_URL, USER_AGENT)
 
 MC = messages.NewMessageContainer(PREFIX, TITLE)
 
