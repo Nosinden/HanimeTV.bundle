@@ -1,5 +1,10 @@
 # ChangeLog
 
+##### 1.0.3
+- _03/30/2016_
+  - Added aadecode
+  - Fixed Video URLs
+
 ##### 1.0.2
 - _03/29/2016_
   - Fixed Search URL
